@@ -4,8 +4,6 @@ import android.animation.Animator
 import android.animation.ValueAnimator
 import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.util.ArrayMap
-import chenchen.engine.animate.AnimateContainer.AnimateNode
-import chenchen.engine.animate.AnimateListener
 import kotlin.math.max
 
 /**
@@ -14,8 +12,6 @@ import kotlin.math.max
  * 1. 整个结构部中不能出现重复的动画对象，否则执行效果会异常
  * 2. [setRepeatCount]、[setRepeatMode]暂时没有测试过，不知道会不会异常，是因为24才能调用[getTotalDuration]
  * 3. 目前无法clone
- * 遗留问题：
- * 1. [AnimateNode.isUpdateDuration]还需要优化
  * @author: chenchen
  * @since: 2022/4/28 22:27
  */
@@ -376,6 +372,7 @@ class AnimateContainer : ValueAnimator() {
         fun with(animator: ValueAnimator): Builder {
             val node = findNodeForAnimator(animator)
             currentNode.getParentNode()?.addChildNode(node)
+            currentNode.getPreviousNode()?.addNextNode(node)
             return Builder(node)
         }
 
@@ -424,7 +421,8 @@ class AnimateContainer : ValueAnimator() {
          */
         fun next(animator: ValueAnimator): Builder {
             val node = findNodeForAnimator(animator)
-            currentNode.setNextNode(node)
+            currentNode.getParentNode()?.addChildNode(node)
+            currentNode.addNextNode(node)
             return Builder(node)
         }
 
@@ -449,7 +447,8 @@ class AnimateContainer : ValueAnimator() {
             delayAnimator.setFloatValues(0f, 1f)
             delayAnimator.duration = delay
             val node = findNodeForAnimator(delayAnimator)
-            currentNode.setNextNode(node)
+            currentNode.getParentNode()?.addChildNode(node)
+            currentNode.addNextNode(node)
             return Builder(node)
         }
     }
@@ -476,22 +475,12 @@ class AnimateContainer : ValueAnimator() {
         /**
          * 下一个节点
          */
-        private var nextNode: AnimateNode? = null
+        private var nextNodes = ArrayList<AnimateNode>()
 
         /**
          * 记录最长时长
          */
         private var longestDuration = 0L
-
-        /**
-         * 记录宽度最长时长
-         */
-        private var widthLongestDuration = 0L
-
-        /**
-         * 记录高度最长时长
-         */
-        private var heightLongestDuration = 0L
 
         /**
          * 记录前置时长
@@ -502,12 +491,6 @@ class AnimateContainer : ValueAnimator() {
          * 记录[isReverse]的前置时间
          */
         private var backDuration = 0L
-
-        /**
-         * 最后一次无规则合计全部动画时长，用于比较时长是否发生过改变，如果改变过则需整个树重新初始化时长的计算
-         * 这个变量只用于根节点，子节点发生变化的话查找到根节点的这个变量，修改为true即可
-         */
-        private var lastAllNodeTotalDuration = 0L
 
         /**
          * 是否翻转
@@ -560,10 +543,9 @@ class AnimateContainer : ValueAnimator() {
          */
         internal fun removeChildNode(node: AnimateNode) {
             if (childNodes.remove(node)) {
+                node.getPreviousNode()?.addNextNodes(node.getNextNodes())
                 node.setParentNode(null)
-                if (node.getNextNode() != null) {
-                    node.getPreviousNode()?.setNextNode(node.getNextNode()!!)
-                }
+                node.setPreviousNode(null)
             }
         }
 
@@ -577,17 +559,28 @@ class AnimateContainer : ValueAnimator() {
         /**
          * 设置上一个节点
          */
-        internal fun setPreviousNode(node: AnimateNode) {
+        internal fun setPreviousNode(node: AnimateNode?) {
             previousNode = node
         }
 
         /**
-         * 设置下一个节点
+         * 添加下一个节点
          */
-        internal fun setNextNode(node: AnimateNode) {
-            nextNode = node
+        internal fun addNextNode(node: AnimateNode) {
+            nextNodes.add(node)
             node.setPreviousNode(this)
             node.setParentNode(this.getParentNode())
+        }
+
+        /**
+         * 添加下一个节点
+         */
+        internal fun addNextNodes(nodes: ArrayList<AnimateNode>) {
+            nextNodes.addAll(nodes)
+            for (node in nodes) {
+                node.setPreviousNode(this)
+                node.setParentNode(this.getParentNode())
+            }
         }
 
         /**
@@ -607,8 +600,8 @@ class AnimateContainer : ValueAnimator() {
         /**
          * 获取下一个节点
          */
-        internal fun getNextNode(): AnimateNode? {
-            return nextNode
+        internal fun getNextNodes(): ArrayList<AnimateNode> {
+            return nextNodes
         }
 
         /**
@@ -620,11 +613,6 @@ class AnimateContainer : ValueAnimator() {
 
         private fun dispatchAction(beforeAction: ((AnimateNode) -> Unit)? = null, afterAction: ((AnimateNode) -> Unit)? = null) {
             beforeAction?.invoke(this)
-            var nextNode = getNextNode()
-            while (nextNode != null) {
-                nextNode.dispatchAction(beforeAction, afterAction)
-                nextNode = nextNode.getNextNode()
-            }
             for (childNod in getChildNodes()) {
                 childNod.dispatchAction(beforeAction, afterAction)
             }
@@ -710,13 +698,11 @@ class AnimateContainer : ValueAnimator() {
          * 2.其他节点如果是[AnimateContainer]则取所有子节点的总时长
          */
         internal fun initAnimation() {
-            //还没有想到怎么去避免重复初始化时长
-//            if (isDurationChange()) {
             //优先执行
             initDuration()
             //其次执行
             initFrontDuration()
-//            }
+            initBackDuration()
         }
 
         /**
@@ -725,11 +711,6 @@ class AnimateContainer : ValueAnimator() {
         private fun initDuration() {
             for (childNode in getChildNodes()) {
                 childNode.initDuration()
-            }
-            var next = nextNode
-            while (next != null) {
-                next.initDuration()
-                next = next.nextNode
             }
             if (animator is AnimateContainer) {
                 animator.removeUpdateListener(animationUpdateListener)
@@ -753,89 +734,74 @@ class AnimateContainer : ValueAnimator() {
             for (childNode in getChildNodes()) {
                 childNode.initFrontDuration()
             }
-            var next = nextNode
-            while (next != null) {
-                next.initFrontDuration()
-                next = next.nextNode
-            }
             rememberFrontDuration()
         }
 
         /**
-         * 以当前节点为起点，获取直到最后一个节点(max(宽,高))，最长的时长，包含当前的时长
+         * 初始化每个节点的后置时长
          */
-        private fun rememberLongestDuration(invalidate: Boolean = true): Long {
-            if (invalidate) {
-                val height = rememberHeightLongestDuration()
-                val width = rememberWidthLongestDuration()
-                //因为width中包含了当前的height，所以要减去才能比较，比较完还要加上当前的duration
-                longestDuration = max(height, width - height) + if (animator is AnimateContainer) 0L else animator.duration
+        private fun initBackDuration() {
+            for (childNode in getChildNodes()) {
+                childNode.initBackDuration()
+            }
+            rememberBackDuration()
+        }
+
+        /**
+         * 以当前节点为起点，获取整个树最长的时长，包含当前的时长
+         */
+        private fun rememberLongestDuration(): Long {
+            if (animator is AnimateContainer) {
+                var childNodeDuration = 0L
+                if (getChildNodes().isNotEmpty()) {
+                    for (childNode in getChildNodes()) {
+                        if (childNode.getPreviousNode() != null) {
+                            //优化算法，如果有前节点，那这个节点一定不是最长的
+                            continue
+                        }
+                        childNodeDuration = max(childNodeDuration, childNode.rememberWidthLongestDuration())
+                    }
+                } else {
+                    //AnimateContainer的时长是根据子节点算的，如果没有子节点就为0
+                    childNodeDuration = 0
+                }
+                longestDuration = childNodeDuration
+            } else {
+                longestDuration = animator.duration
             }
             return longestDuration
         }
 
         /**
-         * 以当前节点为起点，计算子级横向纵向的最长时长，最终结果不包含当前节点的时长
-         */
-        private fun rememberHeightLongestDuration(invalidate: Boolean = true): Long {
-            if (invalidate) {
-                var childNodeDuration = 0L
-                if (getChildNodes().isNotEmpty()) {
-                    for (childNode in getChildNodes()) {
-                        childNodeDuration = max(childNodeDuration, childNode.rememberWidthLongestDuration())
-                    }
-                } else {
-                    childNodeDuration = if (animator is AnimateContainer) 0L else animator.duration
-                }
-                heightLongestDuration = childNodeDuration
-            }
-            return heightLongestDuration
-        }
-
-        /**
          * 以当前节点为起点，计算整个链的总时长，包含当前的时长
          */
-        private fun rememberWidthLongestDuration(invalidate: Boolean = true): Long {
-            if (invalidate) {
-                var currentNode: AnimateNode? = this
-                var nextLinkNodeDuration = 0L
-                while (currentNode != null) {
-                    nextLinkNodeDuration += currentNode.rememberHeightLongestDuration()
-                    currentNode = currentNode.getNextNode()
-                }
-                widthLongestDuration = nextLinkNodeDuration
+        private fun rememberWidthLongestDuration(): Long {
+            var widthLongestDuration = 0L
+            for (childNode in getNextNodes()) {
+                val childrenLongestDuration = childNode.rememberWidthLongestDuration()
+                widthLongestDuration = max(widthLongestDuration, childrenLongestDuration)
             }
-            return widthLongestDuration
+            return widthLongestDuration + if (animator is AnimateContainer) 0L else animator.duration
         }
 
         /**
-         * 返回当前节点的前置时间
+         * 记录当前节点的前置时间
          */
-        private fun rememberFrontDuration(invalidate: Boolean = true): Long {
-            if (invalidate) {
-                //获取所有前节点的时长
-                var previousTotalDuration = getPreviousNode()?.heightLongestDuration ?: 0L
-                var previous = getPreviousNode()?.getPreviousNode()
-                while (previous != null) {
-                    previousTotalDuration += previous.heightLongestDuration
-                    previous = previous.getPreviousNode()
-                }
-                //获取所有父节点的时长，判断parent.parent是否为空，可以确定当前节点是不是根节点的直接子节点，否则取到根节点的时长是不对的，根节点的时长是总时长
-                val parentTotalDuration = getParentNode()?.rememberFrontDuration() ?: 0L
-                //父级节点时间 + 前面的节点时间 = 轮到自己执行需要的前置时间
-                frontDuration = parentTotalDuration + previousTotalDuration
+        private fun rememberFrontDuration() {
+            //这里似乎跟添加子节点的顺序有关，如果添加顺序为[0]，[1]，而遍历时是[1]，[0]则错误。
+            //如果这里发生了错误，只能从最末端的节点往前遍历
+            frontDuration = if (getPreviousNode() == null) {
+                getParentNode()?.frontDuration ?: 0
+            } else {
+                (getPreviousNode()?.frontDuration ?: 0) + (getPreviousNode()?.longestDuration ?: 0)
             }
-            return frontDuration
         }
 
         /**
-         * 返回当前节点的后置时间
+         * 记录当前节点的后置时间
          */
-        private fun rememberBackDuration(invalidate: Boolean = true): Long {
-            if (invalidate) {
-                backDuration = getRootNode().longestDuration - rememberFrontDuration(false) - animator.duration
-            }
-            return backDuration
+        private fun rememberBackDuration() {
+            backDuration = getRootNode().longestDuration - frontDuration - animator.duration
         }
 
         /**
@@ -843,10 +809,8 @@ class AnimateContainer : ValueAnimator() {
          */
         private fun isTime(playTime: Long): Boolean {
             return if (isReverse()) {
-                val backDuration = rememberBackDuration()
                 playTime in backDuration..backDuration + animator.duration
             } else {
-                val frontDuration = rememberFrontDuration(false)
                 playTime in frontDuration..frontDuration + animator.duration
             }
         }
@@ -856,10 +820,8 @@ class AnimateContainer : ValueAnimator() {
          */
         private fun isRunning(playTime: Long): Boolean {
             return if (isReverse()) {
-                val backDuration = rememberBackDuration()
                 playTime in backDuration until backDuration + animator.duration
             } else {
-                val frontDuration = rememberFrontDuration(false)
                 playTime in frontDuration until frontDuration + animator.duration
             }
         }
@@ -886,7 +848,6 @@ class AnimateContainer : ValueAnimator() {
             isRunning = isRunning(playTime)
             retryChangeStartState()
             if (isTime(playTime)) {
-                val frontDuration = rememberFrontDuration(false)
                 val surplusTime = if (isReverse()) {
                     //我自己也看不懂这段怎么计算的
                     getRootNode().animator.duration - playTime - frontDuration
@@ -915,8 +876,6 @@ class AnimateContainer : ValueAnimator() {
         private fun dispatchPlayTime(node: AnimateNode, playTime: Long) {
             //给子级分发时间
             node.getChildNodes().forEach { it.dispatchPlayTime(playTime) }
-            //给下一个节点分发时间
-            node.getNextNode()?.dispatchPlayTime(playTime)
         }
 
         /**
