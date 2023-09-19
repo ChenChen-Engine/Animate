@@ -3,7 +3,9 @@ package chenchen.engine.animate
 import android.view.View
 import android.view.Window
 import androidx.annotation.ColorInt
-import kotlin.collections.ArrayList
+import chenchen.engine.animate.AnimateWrapper.LinkMode.Next
+import chenchen.engine.animate.AnimateWrapper.LinkMode.Null
+import chenchen.engine.animate.AnimateWrapper.LinkMode.With
 
 /**
  * 提供View的快捷动画扩展方法
@@ -16,7 +18,18 @@ import kotlin.collections.ArrayList
  * - [ ] 自动启动
  */
 class FastAnimateScope : AnimateScope() {
-    internal var animateQueue = ArrayList<Animate>(1)
+    internal var animateQueue = ArrayList<AnimateWrapper>(1)
+}
+
+/**
+ * 动画包装类，记录动画是怎么连接起来的
+ */
+internal class AnimateWrapper(val animate: Animate, var mode: LinkMode = Null) {
+    internal enum class LinkMode {
+        Null,
+        With,
+        Next,
+    }
 }
 
 /**
@@ -26,7 +39,7 @@ internal fun <T> T.animateBuilder(buildAnimate: AnimateScope.() -> Animate): Fas
     val link = FastAnimateScope()
     val animate = link.buildAnimate()
     link.attachChild(animate)
-    link.animateQueue.add(animate)
+    link.animateQueue.add(AnimateWrapper(animate))
     return link
 }
 
@@ -50,7 +63,19 @@ fun Window.buildAnimate(buildAnimate: AnimateScope.() -> Animate): FastAnimateSc
  */
 infix fun FastAnimateScope.next(nextAnim: FastAnimateScope) = apply {
     for (animate in nextAnim.animateQueue) {
-        animateQueue.last() next animate
+        when (animate.mode) {
+            With -> {
+                animateQueue.last().animate with animate.animate
+            }
+            Next -> {
+                animateQueue.last().animate next animate.animate
+            }
+            else -> {
+                animate.mode = Next
+                animateQueue.last().animate next animate.animate
+            }
+        }
+        animate.animate.parent = animateQueue.last().animate.parent
         animateQueue.add(animate)
     }
 }
@@ -61,7 +86,19 @@ infix fun FastAnimateScope.next(nextAnim: FastAnimateScope) = apply {
  */
 infix fun FastAnimateScope.with(withAnim: FastAnimateScope) = apply {
     for (animate in withAnim.animateQueue) {
-        animateQueue.last() with animate
+        when (animate.mode) {
+            Next -> {
+                animateQueue.last().animate next animate.animate
+            }
+            With -> {
+                animateQueue.last().animate with animate.animate
+            }
+            else -> {
+                animate.mode = With
+                animateQueue.last().animate with animate.animate
+            }
+        }
+        animate.animate.parent = animateQueue.last().animate.parent
         animateQueue.add(animate)
     }
 }
@@ -72,8 +109,8 @@ infix fun FastAnimateScope.with(withAnim: FastAnimateScope) = apply {
 infix fun FastAnimateScope.delay(delay: Long) = apply {
     val animate = createDelay(delay)
     animate.duration = delay
-    animateQueue.last() next animate
-    animateQueue.add(animate)
+    animateQueue.last().animate next animate
+    animateQueue.add(AnimateWrapper(animate, Next))
 }
 
 /**
