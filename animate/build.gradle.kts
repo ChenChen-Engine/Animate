@@ -1,7 +1,16 @@
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
     id("kotlin-android")
+    id("maven-publish")
+}
+
+publishing {
+    publications {
+        register<MavenPublication>("release") {
+            groupId = "com.github.chenchen-engine"
+            afterEvaluate { from(components["release"]) }
+        }
+    }
 }
 
 android {
@@ -28,6 +37,12 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+    }
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
     }
 }
 

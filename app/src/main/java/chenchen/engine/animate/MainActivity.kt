@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.view.ViewGroup.MarginLayoutParams
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
-import chenchen.engine.animate.databinding.ActivityMainBinding
+import chenchen.engine.animate.demo.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
     private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }

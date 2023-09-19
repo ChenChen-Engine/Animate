@@ -6,8 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.animation.addListener
-import chenchen.engine.animate.databinding.ActivityMainBinding
-import chenchen.engine.animate.databinding.ActivityTestBinding
+import chenchen.engine.animate.demo.databinding.ActivityTestBinding
 
 class TestActivity : AppCompatActivity() {
     private val binding by lazy { ActivityTestBinding.inflate(layoutInflater) }
