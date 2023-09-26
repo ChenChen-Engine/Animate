@@ -457,6 +457,14 @@ class AnimateContainer : ValueAnimator() {
      * 动画节点，组建动画关系代码注释
      */
     class AnimateNode(internal val animator: ValueAnimator) {
+
+        companion object {
+            /**
+             * 无效的时长
+             */
+            const val INVALID_DURATION = Long.MIN_VALUE
+        }
+
         /**
          * 子级
          */
@@ -847,18 +855,19 @@ class AnimateContainer : ValueAnimator() {
         private fun dispatchPlayTime(playTime: Long) {
             isRunning = isRunning(playTime)
             retryChangeStartState()
-            if (isTime(playTime)) {
-                val surplusTime = if (isReverse()) {
-                    //我自己也看不懂这段怎么计算的
-                    getRootNode().animator.duration - playTime - frontDuration
-                } else {
-                    playTime - frontDuration
+            val currentPlayTime = when {
+                //是否已经到当前动画执行了
+                isTime(playTime) -> {
+                    calculateRunningDuration(playTime)
                 }
-                val currentPlayTime = if (surplusTime - animator.duration > 0) {
-                    animator.duration
-                } else {
-                    surplusTime
+                //如果不是当前动画执行，但是currentPlayTime既不是未开始也不是结束，则计算补偿时长
+                animator.currentPlayTime in 0L..animator.duration -> {
+                    calculateCompensatoryDuration(playTime)
                 }
+                //未知情况
+                else -> INVALID_DURATION
+            }
+            if (currentPlayTime != INVALID_DURATION) {
                 if (animator is AnimateContainer) {
                     setContainerPlayTime(currentPlayTime)
                 } else {
@@ -868,6 +877,51 @@ class AnimateContainer : ValueAnimator() {
             dispatchPlayTime(this, playTime)
             retryChangeEndState()
             lastRunning = isRunning
+        }
+
+        /**
+         * 计算运行中的值
+         */
+        private fun calculateRunningDuration(playTime: Long): Long {
+            val surplusTime = if (isReverse()) {
+                //我自己也看不懂这段怎么计算的
+                getRootNode().animator.duration - playTime - frontDuration
+            } else {
+                playTime - frontDuration
+            }
+            return if (surplusTime - animator.duration > 0) {
+                animator.duration
+            } else {
+                surplusTime
+            }
+        }
+
+        /**
+         * 计算补偿的时长。
+         * 例如一个动画的时长为300毫秒，但动画最终执行完可能是299毫秒或301毫秒这样无法对齐的时长，
+         * 301毫秒这种无需处理，因为它已经执行完整只是超过了，而299毫秒在数据层面是不完整的，会导致属性无法正确的计算
+         * 所以这里做一个补偿计算，如果动画未开始则[ValueAnimator.setCurrentPlayTime]置为0，
+         * 如果动画已经结束，则[ValueAnimator.setCurrentPlayTime]置为动画本身的[ValueAnimator.getDuration]
+         * @return 如果返回的是[INVALID_DURATION]则无需处理
+         */
+        private fun calculateCompensatoryDuration(playTime: Long): Long {
+            return if (isReverse()) {
+                if (playTime <= backDuration) {
+                    animator.duration
+                } else if (playTime >= backDuration + animator.duration) {
+                    0L
+                } else {
+                    INVALID_DURATION
+                }
+            } else {
+                if (playTime <= frontDuration) {
+                    0L
+                } else if (playTime >= frontDuration + animator.duration) {
+                    animator.duration
+                } else {
+                    INVALID_DURATION
+                }
+            }
         }
 
         /**
@@ -882,8 +936,16 @@ class AnimateContainer : ValueAnimator() {
          * 给普通动画设置时间进度并且回调
          */
         private fun setCurrentPlayTime(playTime: Long) {
-            animator.currentPlayTime = playTime
-            listeners.forEach { it.onUpdate(this, animatedValue(), playTime) }
+            //因为代码执行总需要一些时间所以playTime可能会比duration多几毫秒，这里做个修正
+            val fixPlayTime = if (playTime > animator.duration) {
+                animator.duration
+            } else if (playTime < 0) {
+                0
+            } else {
+                playTime
+            }
+            animator.currentPlayTime = fixPlayTime
+            listeners.forEach { it.onUpdate(this, animatedValue(), fixPlayTime) }
         }
 
         /**
