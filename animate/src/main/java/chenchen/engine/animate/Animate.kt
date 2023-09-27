@@ -5,9 +5,6 @@ import android.animation.TypeEvaluator
 import android.animation.ValueAnimator
 import android.view.animation.Interpolator
 import android.view.animation.LinearInterpolator
-import chenchen.engine.animate.AnimateListener
-import chenchen.engine.animate.AnimateScope
-import java.lang.ref.WeakReference
 
 /**
  * 自定义Animator封装，实现快速构建动画关系的前提
@@ -19,13 +16,13 @@ abstract class Animate(
      * 当前动画的对象
      */
     internal val animator: ValueAnimator) {
-    private var weakOnEnd: WeakReference<(animateNode: AnimateContainer.AnimateNode) -> Unit>? = null
-    private var weakOnStart: WeakReference<(animateNode: AnimateContainer.AnimateNode) -> Unit>? = null
-    private var weakOnCancel: WeakReference<(animateNode: AnimateContainer.AnimateNode) -> Unit>? = null
-    private var weakOnReverse: WeakReference<(animateNode: AnimateContainer.AnimateNode, Boolean) -> Unit>? = null
-    private var weakOnResume: WeakReference<(animateNode: AnimateContainer.AnimateNode) -> Unit>? = null
-    private var weakOnPause: WeakReference<(animateNode: AnimateContainer.AnimateNode) -> Unit>? = null
-    private var weakOnUpdate: WeakReference<(animateNode: AnimateContainer.AnimateNode, value: Any, playTime: Long) -> Unit>? = null
+    private var weakOnEnd: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
+    private var weakOnStart: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
+    private var weakOnCancel: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
+    private var weakOnReverse: ((animateNode: AnimateContainer.AnimateNode, Boolean) -> Unit)? = null
+    private var weakOnResume: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
+    private var weakOnPause: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
+    private var weakOnUpdate: ((animateNode: AnimateContainer.AnimateNode, value: Any, playTime: Long) -> Unit)? = null
 
     /**
      * 记录自己的上一级
@@ -112,7 +109,7 @@ abstract class Animate(
      * ```
      */
     fun doOnEnd(block: (animateNode: AnimateContainer.AnimateNode) -> Unit) {
-        weakOnEnd = WeakReference(block)
+        weakOnEnd = block
     }
 
     /**
@@ -128,7 +125,7 @@ abstract class Animate(
      * ```
      */
     fun doOnStart(block: (animateNode: AnimateContainer.AnimateNode) -> Unit) {
-        weakOnStart = WeakReference(block)
+        weakOnStart = block
     }
 
     /**
@@ -144,7 +141,7 @@ abstract class Animate(
      * ```
      */
     fun doOnCancel(block: (animateNode: AnimateContainer.AnimateNode) -> Unit) {
-        weakOnCancel = WeakReference(block)
+        weakOnCancel = block
     }
 
     /**
@@ -160,7 +157,7 @@ abstract class Animate(
      * ```
      */
     fun doOnReverse(block: (animateNode: AnimateContainer.AnimateNode, isReverse: Boolean) -> Unit) {
-        weakOnReverse = WeakReference(block)
+        weakOnReverse = block
     }
 
     /**
@@ -176,7 +173,7 @@ abstract class Animate(
      * ```
      */
     fun doOnResume(block: (animateNode: AnimateContainer.AnimateNode) -> Unit) {
-        weakOnResume = WeakReference(block)
+        weakOnResume = block
     }
 
     /**
@@ -192,7 +189,7 @@ abstract class Animate(
      * ```
      */
     fun doOnPause(block: (animateNode: AnimateContainer.AnimateNode) -> Unit) {
-        weakOnPause = WeakReference(block)
+        weakOnPause = block
     }
 
     /**
@@ -208,36 +205,36 @@ abstract class Animate(
      * ```
      */
     fun doOnUpdate(block: (animateNode: AnimateContainer.AnimateNode, value: Any, playTime: Long) -> Unit) {
-        weakOnUpdate = WeakReference(block)
+        weakOnUpdate = block
     }
 
     internal val animateListener = object : AnimateListener() {
         override fun onStart(node: AnimateContainer.AnimateNode) {
-            weakOnStart?.get()?.invoke(node)
+            weakOnStart?.invoke(node)
         }
 
         override fun onResume(node: AnimateContainer.AnimateNode) {
-            weakOnResume?.get()?.invoke(node)
+            weakOnResume?.invoke(node)
         }
 
         override fun onPause(node: AnimateContainer.AnimateNode) {
-            weakOnPause?.get()?.invoke(node)
+            weakOnPause?.invoke(node)
         }
 
         override fun onCancel(node: AnimateContainer.AnimateNode) {
-            weakOnCancel?.get()?.invoke(node)
+            weakOnCancel?.invoke(node)
         }
 
         override fun onEnd(node: AnimateContainer.AnimateNode) {
-            weakOnEnd?.get()?.invoke(node)
+            weakOnEnd?.invoke(node)
         }
 
         override fun onReverse(node: AnimateContainer.AnimateNode, isReverse: Boolean) {
-            weakOnReverse?.get()?.invoke(node, isReverse)
+            weakOnReverse?.invoke(node, isReverse)
         }
 
         override fun onUpdate(node: AnimateContainer.AnimateNode, value: Any, playTime: Long) {
-            weakOnUpdate?.get()?.invoke(node, value, playTime)
+            weakOnUpdate?.invoke(node, value, playTime)
         }
     }
 }
