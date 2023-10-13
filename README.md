@@ -191,12 +191,11 @@ fun testAnimated(target: View) {
 |`isRunning`        |动画是否运行|
 |`interpolator`     |设置插值器，默认`LinearInterpolator`|
 |`duration`         |设置动画时长，默认300|
-|`doOnCancel`       |监听动画取消执行，只能设置一个|
-|`doOnRepeat`       |监听动画重复执行，只能设置一个|
-|`doOnResume`       |监听动画恢复执行，只能设置一个|
-|`doOnPause`        |监听动画暂停执行，只能设置一个|
-|`doOnStart`        |监听动画开始执行，只能设置一个|
-|`doOnEnd`          |监听动画结束执行，只能设置一个|
+|`onCancel`       |监听动画取消执行，只能设置一个|
+|`onResume`       |监听动画恢复执行，只能设置一个|
+|`onPause`        |监听动画暂停执行，只能设置一个|
+|`onStart`        |监听动画开始执行，只能设置一个|
+|`onEnd`          |监听动画结束执行，只能设置一个|
 
 ## 自定义属性动画
 
