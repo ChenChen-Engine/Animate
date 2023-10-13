@@ -1,6 +1,7 @@
 package chenchen.engine.animate
 
 import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.util.ArrayMap
@@ -111,7 +112,6 @@ class AnimateContainer : ValueAnimator() {
             throw UnsupportedOperationException("child animate cannot reverse, please use root animate(子动画无法操作reverse，请使用根动画)")
         }
         super.resume()
-        rootNode.dispatchResume()
     }
 
     override fun pause() {
@@ -119,7 +119,6 @@ class AnimateContainer : ValueAnimator() {
             throw UnsupportedOperationException("child animate cannot reverse, please use root animate(子动画无法操作reverse，请使用根动画)")
         }
         super.pause()
-        rootNode.dispatchPause()
     }
 
     override fun cancel() {
@@ -127,7 +126,6 @@ class AnimateContainer : ValueAnimator() {
             throw UnsupportedOperationException("child animate cannot reverse, please use root animate(子动画无法操作reverse，请使用根动画)")
         }
         super.cancel()
-        rootNode.dispatchCancel()
     }
 
     /**
@@ -274,19 +272,26 @@ class AnimateContainer : ValueAnimator() {
     }
 
     /**
-     * 内部使用
-     */
-    private fun superAddUpdateListener(listener: AnimatorUpdateListener?) {
-        super.addUpdateListener(listener)
-    }
-
-    /**
      * 不支持
      *
      */
     @Deprecated("unsupported", ReplaceWith("replace addListener(AnimateListener)"))
     override fun addPauseListener(listener: AnimatorPauseListener?) {
         throw UnsupportedOperationException("replace addListener(AnimateListener)")
+    }
+
+    /**
+     * 内部使用，添加动画进度监听
+     */
+    private fun superAddUpdateListener(listener: AnimatorUpdateListener?) {
+        super.addUpdateListener(listener)
+    }
+
+    /**
+     * 内部使用，添加动画状态监听
+     */
+    private fun superAddListener(listener: AnimatorListener?) {
+        super.addListener(listener)
     }
 
     /**
@@ -721,8 +726,13 @@ class AnimateContainer : ValueAnimator() {
                 childNode.initDuration()
             }
             if (animator is AnimateContainer) {
-                animator.removeUpdateListener(animationUpdateListener)
-                animator.superAddUpdateListener(animationUpdateListener)
+                if (parentNode == null) {
+                    //只有根动画需要添加状态监听
+                    animator.removeListener(animatorListener)
+                    animator.superAddListener(animatorListener)
+                }
+                animator.removeUpdateListener(animatorUpdateListener)
+                animator.superAddUpdateListener(animatorUpdateListener)
                 //重置时长，否则递归获取时长时会错乱
                 animator.superSetDuration(0)
                 val longestDuration = rememberLongestDuration()
@@ -959,7 +969,8 @@ class AnimateContainer : ValueAnimator() {
          * 尝试更新开始状态
          */
         private fun retryChangeStartState() {
-            if (lastRunning != isRunning) {
+            //根动画不在这里处理回调
+            if (parentNode != null && lastRunning != isRunning) {
                 if (isRunning) {
                     listeners.forEach { it.onStart(this) }
                 }
@@ -970,7 +981,8 @@ class AnimateContainer : ValueAnimator() {
          * 尝试更新结束状态
          */
         private fun retryChangeEndState() {
-            if (lastRunning != isRunning) {
+            //根动画不在这里处理回调
+            if (parentNode != null && lastRunning != isRunning) {
                 if (!isRunning) {
                     listeners.forEach { it.onEnd(this) }
                 }
@@ -980,9 +992,35 @@ class AnimateContainer : ValueAnimator() {
         /**
          * 动画更新
          */
-        private val animationUpdateListener = AnimatorUpdateListener { animation ->
+        private val animatorUpdateListener = AnimatorUpdateListener { animation ->
             //从根动画监听到的时间，继续给子动画分发
             dispatchPlayTime(animation.currentPlayTime)
+        }
+
+        /**
+         * 根动画状态监听
+         */
+        private val animatorListener = object : AnimatorListenerAdapter() {
+
+            override fun onAnimationStart(animation: Animator) {
+                listeners.forEach { it.onStart(this@AnimateNode) }
+            }
+
+            override fun onAnimationEnd(animation: Animator) {
+                listeners.forEach { it.onEnd(this@AnimateNode) }
+            }
+
+            override fun onAnimationCancel(animation: Animator) {
+                dispatchCancel()
+            }
+
+            override fun onAnimationPause(animation: Animator) {
+                dispatchPause()
+            }
+
+            override fun onAnimationResume(animation: Animator) {
+                dispatchResume()
+            }
         }
     }
 }
