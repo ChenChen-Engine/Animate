@@ -521,6 +521,11 @@ class AnimateContainer : ValueAnimator() {
         private var lastRunning = false
 
         /**
+         * 记录当前重复的次数
+         */
+        private var rememberRepeatCount = 0
+
+        /**
          * 动画监听
          */
         private val listeners by lazy { ArrayList<AnimateListener>(1) }
@@ -711,11 +716,21 @@ class AnimateContainer : ValueAnimator() {
          * 2.其他节点如果是[AnimateContainer]则取所有子节点的总时长
          */
         internal fun initAnimation() {
-            //优先执行
+            initState()
+            //初始化时长按顺序执行initDuration->initFrontDuration->initBackDuration
             initDuration()
-            //其次执行
             initFrontDuration()
             initBackDuration()
+        }
+
+        /**
+         * 初始化状态
+         */
+        private fun initState(){
+            dispatchAction(beforeAction = { node ->
+                //初始化动画时，将所有需要的参数重置
+                node.rememberRepeatCount = 0
+            })
         }
 
         /**
@@ -785,7 +800,7 @@ class AnimateContainer : ValueAnimator() {
                 }
                 longestDuration = childNodeDuration
             } else {
-                longestDuration = animator.duration
+                longestDuration = animator.totalDuration
             }
             return longestDuration
         }
@@ -799,7 +814,7 @@ class AnimateContainer : ValueAnimator() {
                 val childrenLongestDuration = childNode.rememberWidthLongestDuration()
                 widthLongestDuration = max(widthLongestDuration, childrenLongestDuration)
             }
-            return widthLongestDuration + if (animator is AnimateContainer) 0L else animator.duration
+            return widthLongestDuration + if (animator is AnimateContainer) 0L else animator.totalDuration
         }
 
         /**
@@ -819,7 +834,7 @@ class AnimateContainer : ValueAnimator() {
          * 记录当前节点的后置时间
          */
         private fun rememberBackDuration() {
-            backDuration = getRootNode().longestDuration - frontDuration - animator.duration
+            backDuration = getRootNode().longestDuration - frontDuration - animator.totalDuration
         }
 
         /**
@@ -827,9 +842,9 @@ class AnimateContainer : ValueAnimator() {
          */
         private fun isTime(playTime: Long): Boolean {
             return if (isReverse()) {
-                playTime in backDuration..backDuration + animator.duration
+                playTime in backDuration..backDuration + animator.totalDuration
             } else {
-                playTime in frontDuration..frontDuration + animator.duration
+                playTime in frontDuration..frontDuration + animator.totalDuration
             }
         }
 
@@ -838,9 +853,9 @@ class AnimateContainer : ValueAnimator() {
          */
         private fun isRunning(playTime: Long): Boolean {
             return if (isReverse()) {
-                playTime in backDuration until backDuration + animator.duration
+                playTime in backDuration until backDuration + animator.totalDuration
             } else {
-                playTime in frontDuration until frontDuration + animator.duration
+                playTime in frontDuration until frontDuration + animator.totalDuration
             }
         }
 
@@ -865,13 +880,14 @@ class AnimateContainer : ValueAnimator() {
         private fun dispatchPlayTime(playTime: Long) {
             isRunning = isRunning(playTime)
             retryChangeStartState()
+            retryChangeRepeat(playTime)
             val currentPlayTime = when {
                 //是否已经到当前动画执行了
                 isTime(playTime) -> {
                     calculateRunningDuration(playTime)
                 }
                 //如果不是当前动画执行，但是currentPlayTime既不是未开始也不是结束，则计算补偿时长
-                animator.currentPlayTime in 0L..animator.duration -> {
+                animator.currentPlayTime in 0L..animator.totalDuration -> {
                     calculateCompensatoryDuration(playTime)
                 }
                 //未知情况
@@ -895,12 +911,12 @@ class AnimateContainer : ValueAnimator() {
         private fun calculateRunningDuration(playTime: Long): Long {
             val surplusTime = if (isReverse()) {
                 //我自己也看不懂这段怎么计算的
-                getRootNode().animator.duration - playTime - frontDuration
+                getRootNode().animator.totalDuration - playTime - frontDuration
             } else {
                 playTime - frontDuration
             }
-            return if (surplusTime - animator.duration > 0) {
-                animator.duration
+            return if (surplusTime - animator.totalDuration > 0) {
+                animator.totalDuration
             } else {
                 surplusTime
             }
@@ -917,8 +933,8 @@ class AnimateContainer : ValueAnimator() {
         private fun calculateCompensatoryDuration(playTime: Long): Long {
             return if (isReverse()) {
                 if (playTime <= backDuration) {
-                    animator.duration
-                } else if (playTime >= backDuration + animator.duration) {
+                    animator.totalDuration
+                } else if (playTime >= backDuration + animator.totalDuration) {
                     0L
                 } else {
                     INVALID_DURATION
@@ -926,8 +942,8 @@ class AnimateContainer : ValueAnimator() {
             } else {
                 if (playTime <= frontDuration) {
                     0L
-                } else if (playTime >= frontDuration + animator.duration) {
-                    animator.duration
+                } else if (playTime >= frontDuration + animator.totalDuration) {
+                    animator.totalDuration
                 } else {
                     INVALID_DURATION
                 }
@@ -947,8 +963,8 @@ class AnimateContainer : ValueAnimator() {
          */
         private fun setCurrentPlayTime(playTime: Long) {
             //因为代码执行总需要一些时间所以playTime可能会比duration多几毫秒，这里做个修正
-            val fixPlayTime = if (playTime > animator.duration) {
-                animator.duration
+            val fixPlayTime = if (playTime > animator.totalDuration) {
+                animator.totalDuration
             } else if (playTime < 0) {
                 0
             } else {
@@ -962,7 +978,7 @@ class AnimateContainer : ValueAnimator() {
          * 给容器节点回调进度，因为容器本身没有数值，所以以百分比作为数值
          */
         private fun setContainerPlayTime(playTime: Long) {
-            listeners.forEach { it.onUpdate(this, playTime.toFloat() / animator.duration, playTime) }
+            listeners.forEach { it.onUpdate(this, playTime.toFloat() / animator.totalDuration, playTime) }
         }
 
         /**
@@ -990,11 +1006,45 @@ class AnimateContainer : ValueAnimator() {
         }
 
         /**
+         * 尝试更新重复次数
+         * 根动画需要特殊处理，在原生更新动画时长的时候就需要调用一次。
+         */
+        private fun retryChangeRepeat(playTime: Long) {
+            if(!isTime(playTime)){
+                return
+            }
+            val currentPlayTime = calculateRunningDuration(playTime)
+            val repeatCount = if (currentPlayTime < animator.totalDuration) {
+                (currentPlayTime / animator.duration).toInt() + 1
+            } else {
+                (currentPlayTime / animator.duration).toInt()
+            }
+            if (repeatCount > rememberRepeatCount && currentPlayTime <= animator.totalDuration) {
+                rememberRepeatCount = repeatCount
+                listeners.forEach { it.onRepeat(this, repeatCount, animator.repeatCount + 1) }
+            }
+        }
+
+        /**
          * 动画更新
+         * ```
+         * 1. 从根动画监听到的时间，主动给子动画分发，驱动子动画执行
+         * ```
+         * ```
+         * 2. 根动画的重复次数执行逻辑和子动画重复次数执行逻辑不一样。例如：
+         * 子动画时长为300，重复次数为2，时长就是300*2=600，那根动画的时长也就是600
+         * 如果这时候给根动画也设置重复次数为2，根动画的总时长就是600*2=1200
+         * 如果按照1200的时长去分发，子动画执行到600之后就没有可执行的动画了
+         * 所以每600要重新归零分发
+         * ```
          */
         private val animatorUpdateListener = AnimatorUpdateListener { animation ->
-            //从根动画监听到的时间，继续给子动画分发
-            dispatchPlayTime(animation.currentPlayTime)
+            retryChangeRepeat(animation.currentPlayTime)
+            if (animation.currentPlayTime >= animation.totalDuration) {
+                dispatchPlayTime(animation.duration)
+            } else {
+                dispatchPlayTime(animation.currentPlayTime % animation.duration)
+            }
         }
 
         /**

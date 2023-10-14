@@ -5,6 +5,7 @@ import android.animation.TypeEvaluator
 import android.animation.ValueAnimator
 import android.view.animation.Interpolator
 import android.view.animation.LinearInterpolator
+import java.lang.Integer.max
 
 /**
  * 自定义Animator封装，实现快速构建动画关系的前提
@@ -12,10 +13,8 @@ import android.view.animation.LinearInterpolator
  * @since: 2022/4/28 22:27
  */
 abstract class Animate(
-    /**
-     * 当前动画的对象
-     */
-    internal val animator: ValueAnimator) {
+        internal var animator: ValueAnimator
+) : Cloneable {
     private var onEnd: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
     private var onStart: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
     private var onCancel: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
@@ -23,6 +22,7 @@ abstract class Animate(
     private var onResume: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
     private var onPause: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
     private var onUpdate: ((animateNode: AnimateContainer.AnimateNode, value: Any, playTime: Long) -> Unit)? = null
+    private var onRepeat: ((animateNode: AnimateContainer.AnimateNode, count: Int, totalCount: Int) -> Unit)? = null
 
     /**
      * 记录自己的上一级
@@ -54,6 +54,18 @@ abstract class Animate(
         set(value) {
             field = value
             animator.setEvaluator(value)
+        }
+
+    /**
+     * 设置动画执行次数
+     * 原生动画从0开始，为了明确动画执行次数，从1开始，设置多少就是执行多少次，默认为1
+     * 且执行次数必须大于等于1，小于等于1则为1。
+     * 不可以按照原生动画设置-1无限循环，如果需要使用无限循环，则可以在根动画[onEnd]的时候再次[AnimateScope.start]
+     */
+    var repeatCount: Int = 1
+        set(value) {
+            field = value
+            animator.repeatCount = max(value - 1, 0)
         }
 
     /**
@@ -93,6 +105,8 @@ abstract class Animate(
      * 做好开始前的准备工作
      */
     internal open fun notifyStart() {
+        //不支持其他模式，在开始的时候统一置为循环开始
+        animator.repeatMode = ValueAnimator.RESTART
         getAnimateNode()?.addListener(animateListener)
     }
 
@@ -100,7 +114,7 @@ abstract class Animate(
      * 监听动画结束，用法
      * ```
      * animatorScope {
-     *      widthAnim {
+     *      animateWidth {
      *          onEnd {
      *              //do Something
      *          }
@@ -116,7 +130,7 @@ abstract class Animate(
      * 监听动画开始，用法
      * ```
      * animatorScope {
-     *      widthAnim {
+     *      animateWidth {
      *          onStart {
      *              //do Something
      *          }
@@ -132,7 +146,7 @@ abstract class Animate(
      * 监听动画取消，用法
      * ```
      * animatorScope {
-     *      widthAnim {
+     *      animateWidth {
      *          onCancel {
      *              //do Something
      *          }
@@ -148,7 +162,7 @@ abstract class Animate(
      * 监听动画重复，用法
      * ```
      * animatorScope {
-     *      widthAnim {
+     *      animateWidth {
      *          onReverse {
      *              //do Something
      *          }
@@ -164,7 +178,7 @@ abstract class Animate(
      * 监听动画恢复，用法
      * ```
      * animatorScope {
-     *      widthAnim {
+     *      animateWidth {
      *          onResume {
      *              //do Something
      *          }
@@ -180,7 +194,7 @@ abstract class Animate(
      * 监听动画暂停，用法
      * ```
      * animatorScope {
-     *      widthAnim {
+     *      animateWidth {
      *          onPause {
      *              //do Something
      *          }
@@ -196,7 +210,7 @@ abstract class Animate(
      * 监听动画进度，用法
      * ```
      * animatorScope {
-     *      widthAnim {
+     *      animateWidth {
      *          onUpdate {
      *              //do Something
      *          }
@@ -208,7 +222,23 @@ abstract class Animate(
         onUpdate = block
     }
 
-    internal val animateListener = object : AnimateListener() {
+    /**
+     * 监听动画进度，用法
+     * ```
+     * animatorScope {
+     *      animateWidth {
+     *          onRepeat {
+     *              //do Something
+     *          }
+     *      }
+     * }
+     * ```
+     */
+    fun onRepeat(block: (animateNode: AnimateContainer.AnimateNode, count: Int, totalCount: Int) -> Unit) {
+        onRepeat = block
+    }
+
+    private val animateListener = object : AnimateListener {
         override fun onStart(node: AnimateContainer.AnimateNode) {
             onStart?.invoke(node)
         }
@@ -236,5 +266,15 @@ abstract class Animate(
         override fun onUpdate(node: AnimateContainer.AnimateNode, value: Any, playTime: Long) {
             onUpdate?.invoke(node, value, playTime)
         }
+
+        override fun onRepeat(node: AnimateContainer.AnimateNode, count: Int, totalCount: Int) {
+            onRepeat?.invoke(node, count, totalCount)
+        }
+    }
+
+    public override fun clone(): Animate {
+        val clone = super.clone() as Animate
+        clone.animator = animator.clone()
+        return clone
     }
 }
