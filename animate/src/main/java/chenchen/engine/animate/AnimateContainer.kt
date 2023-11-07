@@ -726,7 +726,7 @@ class AnimateContainer : ValueAnimator() {
         /**
          * 初始化状态
          */
-        private fun initState(){
+        private fun initState() {
             dispatchAction(beforeAction = { node ->
                 //初始化动画时，将所有需要的参数重置
                 node.rememberRepeatCount = 0
@@ -792,7 +792,11 @@ class AnimateContainer : ValueAnimator() {
                             //优化算法，如果有前节点，那这个节点一定不是最长的
                             continue
                         }
-                        childNodeDuration = max(childNodeDuration, childNode.rememberWidthLongestDuration())
+                        childNodeDuration = if (childNode.animator is AnimateContainer) {
+                            max(childNodeDuration, childNode.animator.totalDuration)
+                        } else {
+                            max(childNodeDuration, childNode.rememberWidthLongestDuration())
+                        }
                     }
                 } else {
                     //AnimateContainer的时长是根据子节点算的，如果没有子节点就为0
@@ -1010,7 +1014,7 @@ class AnimateContainer : ValueAnimator() {
          * 根动画需要特殊处理，在原生更新动画时长的时候就需要调用一次。
          */
         private fun retryChangeRepeat(playTime: Long) {
-            if(!isTime(playTime)){
+            if (!isTime(playTime)) {
                 return
             }
             val currentPlayTime = calculateRunningDuration(playTime)
