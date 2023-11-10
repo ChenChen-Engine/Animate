@@ -1051,16 +1051,23 @@ class AnimateContainer : ValueAnimator() {
          * 根动画状态监听
          */
         private val animatorListener = object : AnimatorListenerAdapter() {
-
+            private var isCancel = false
             override fun onAnimationStart(animation: Animator) {
+                isCancel = false
                 listeners.forEach { it.onStart(this@AnimateNode) }
             }
 
             override fun onAnimationEnd(animation: Animator) {
+                if (isCancel) {
+                    //判断是否通过cancel结束动画的，是则不继续调用End
+                    isCancel = false
+                    return
+                }
                 listeners.forEach { it.onEnd(this@AnimateNode) }
             }
 
             override fun onAnimationCancel(animation: Animator) {
+                isCancel = true
                 dispatchCancel()
             }
 
