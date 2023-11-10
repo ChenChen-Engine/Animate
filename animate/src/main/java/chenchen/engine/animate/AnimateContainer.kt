@@ -792,11 +792,7 @@ class AnimateContainer : ValueAnimator() {
                             //优化算法，如果有前节点，那这个节点一定不是最长的
                             continue
                         }
-                        childNodeDuration = if (childNode.animator is AnimateContainer) {
-                            max(childNodeDuration, childNode.animator.totalDuration)
-                        } else {
-                            max(childNodeDuration, childNode.rememberWidthLongestDuration())
-                        }
+                        childNodeDuration = max(childNodeDuration, childNode.rememberWidthLongestDuration())
                     }
                 } else {
                     //AnimateContainer的时长是根据子节点算的，如果没有子节点就为0
@@ -818,7 +814,7 @@ class AnimateContainer : ValueAnimator() {
                 val childrenLongestDuration = childNode.rememberWidthLongestDuration()
                 widthLongestDuration = max(widthLongestDuration, childrenLongestDuration)
             }
-            return widthLongestDuration + if (animator is AnimateContainer) 0L else animator.totalDuration
+            return widthLongestDuration + animator.totalDuration
         }
 
         /**
