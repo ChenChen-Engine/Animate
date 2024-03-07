@@ -78,9 +78,11 @@ class AnimateContainer : ValueAnimator() {
         if (rootNode.getParentNode() != null) {
             throw UnsupportedOperationException("child animate cannot reverse, please use root animate(子动画无法操作reverse，请使用根动画)")
         }
+        initAnimation()
         val toPlayTime = if (isStarted || isRunning) {
             duration - currentPlayTime
         } else {
+            //TODO 这里可能不太正确，如果从没开始过，并且直接调用reverse，0或许不太合理，有时间在看吧
             0
         }
         rootNode.dispatchReverse(!rootNode.isReverse())
