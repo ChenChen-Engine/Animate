@@ -3,6 +3,10 @@ package chenchen.engine.animate
 import android.view.View
 import android.view.Window
 import androidx.annotation.ColorInt
+import androidx.core.view.marginBottom
+import androidx.core.view.marginEnd
+import androidx.core.view.marginStart
+import androidx.core.view.marginTop
 import chenchen.engine.animate.AnimateWrapper.LinkMode.Next
 import chenchen.engine.animate.AnimateWrapper.LinkMode.Null
 import chenchen.engine.animate.AnimateWrapper.LinkMode.With
@@ -137,6 +141,97 @@ fun View.animateHeight(height: Int, duration: Long = 300) = buildAnimate {
 fun View.animatedSize(width: Int = this.width, height: Int = this.height, duration: Long = 300) =
     animateWidth(width, duration) with animateHeight(height, duration)
 
+/**
+ * View的start外间距变化动画
+ */
+fun View.animateMarginStart(start: Int, duration: Long = 300) = buildAnimate {
+    animateMarginStart(this@animateMarginStart, start) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的end外间距变化动画
+ */
+fun View.animateMarginEnd(end: Int, duration: Long = 300) = buildAnimate {
+    animateMarginEnd(this@animateMarginEnd, end) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的顶部外间距变化动画
+ */
+fun View.animateMarginTop(top: Int, duration: Long = 300) = buildAnimate {
+    animateMarginTop(this@animateMarginTop, top) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的底部外间距变化动画
+ */
+fun View.animateMarginBottom(bottom: Int, duration: Long = 300) = buildAnimate {
+    animateMarginBottom(this@animateMarginBottom, bottom) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的外间距变化动画
+ */
+fun View.animateMargin(
+    start: Int = marginStart, top: Int = marginTop,
+    end: Int = marginEnd, bottom: Int = marginBottom, duration: Long = 300
+) = animateMarginStart(start, duration) with animateMarginEnd(end, duration) with
+        animateMarginTop(top, duration) with animateMarginBottom(bottom, duration)
+
+
+/**
+ * View的start内间距变化动画
+ */
+fun View.animatePaddingStart(start: Int, duration: Long = 300) = buildAnimate {
+    animatePaddingStart(this@animatePaddingStart, start) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的end内间距变化动画
+ */
+fun View.animatePaddingEnd(end: Int, duration: Long = 300) = buildAnimate {
+    animatePaddingEnd(this@animatePaddingEnd, end) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的顶部内间距变化动画
+ */
+fun View.animatePaddingTop(top: Int, duration: Long = 300) = buildAnimate {
+    animatePaddingTop(this@animatePaddingTop, top) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的底部内间距变化动画
+ */
+fun View.animatePaddingBottom(bottom: Int, duration: Long = 300) = buildAnimate {
+    animatePaddingBottom(this@animatePaddingBottom, bottom) {
+        this.duration = duration
+    }
+}
+
+/**
+ * View的内间距变化动画
+ */
+fun View.animatePadding(
+    start: Int = paddingStart, top: Int = paddingTop,
+    end: Int = paddingEnd, bottom: Int = paddingBottom, duration: Long = 300
+) = animatePaddingStart(start, duration) with animatePaddingEnd(end, duration) with
+        animatePaddingTop(top, duration) with animatePaddingBottom(bottom, duration)
+
 
 /**
  * View的透明度变化动画
@@ -220,7 +315,8 @@ fun View.animatedTranslationXYZ(
     y: Float = this.translationY,
     z: Float = this.translationZ,
     duration: Long = 300
-) = animateTranslationX(x, duration) with animateTranslationY(y, duration) with animateTranslationZ(z, duration)
+) =
+    animateTranslationX(x, duration) with animateTranslationY(y, duration) with animateTranslationZ(z, duration)
 
 
 /**

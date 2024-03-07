@@ -43,6 +43,134 @@ fun AnimateScope.animateHeight(
 }
 
 /**
+ * View的start外间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animateMarginStart(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewMarginStartAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewMarginStartAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
+ * View的end外间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animateMarginEnd(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewMarginEndAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewMarginEndAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
+ * View的顶部外间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animateMarginTop(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewMarginTopAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewMarginTopAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
+ * View的底部外间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animateMarginBottom(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewMarginBottomAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewMarginBottomAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
+ * View的start内间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animatePaddingStart(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewPaddingStartAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewPaddingStartAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
+ * View的end内间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animatePaddingEnd(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewPaddingEndAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewPaddingEndAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
+ * View的顶部内间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animatePaddingTop(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewPaddingTopAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewPaddingTopAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
+ * View的底部内间距动画
+ * @param target 作用到哪个View上
+ * @param values 修改的值，可以是：0 → ∞
+ */
+fun AnimateScope.animatePaddingBottom(
+    target: View,
+    vararg values: Int,
+    scopeContent: ViewPaddingBottomAnimate.() -> Unit = {}
+): Animate {
+    val itemScope = ViewPaddingBottomAnimate(target, values)
+    itemScope.scopeContent()
+    this.attachChild(itemScope)
+    return itemScope
+}
+
+/**
  * View的透明度动画
  * @param target 作用到哪个View上
  * @param values 修改的值，可以是：0f → ∞f

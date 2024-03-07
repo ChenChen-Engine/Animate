@@ -179,6 +179,85 @@ class ViewScrollYAnimate(
     ObjectAnimator.ofInt(target, PropertyNames.scrollY, * values)
 )
 
+/**
+ * View的start外间距动画
+ */
+class ViewMarginStartAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewMarginStartProperty.INSTANCE, * values)
+)
+
+/**
+ * View的end外间距动画
+ */
+class ViewMarginEndAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewMarginEndProperty.INSTANCE, * values)
+)
+
+/**
+ * View的顶部外间距动画
+ */
+class ViewMarginTopAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewMarginTopProperty.INSTANCE, * values)
+)
+
+/**
+ * View的底部外间距动画
+ */
+class ViewMarginBottomAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewMarginBottomProperty.INSTANCE, * values)
+)
+
+/**
+ * View的start内间距动画
+ */
+class ViewPaddingStartAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewPaddingStartProperty.INSTANCE, * values)
+)
+
+/**
+ * View的end内间距动画
+ */
+class ViewPaddingEndAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewPaddingEndProperty.INSTANCE, * values)
+)
+
+/**
+ * View的顶部内间距动画
+ */
+class ViewPaddingTopAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewPaddingTopProperty.INSTANCE, * values)
+)
+
+/**
+ * View的底部内间距动画
+ */
+class ViewPaddingBottomAnimate(
+    target: View, values: IntArray
+) : ObjectAnimate<View, IntArray>(
+    target, values,
+    ObjectAnimator.ofInt(target, ViewPaddingBottomProperty.INSTANCE, * values)
+)
 
 /**
  * View的背景颜色动画
