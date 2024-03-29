@@ -276,7 +276,7 @@ class ViewVisibilityAnimate(
     target: View, values: Boolean
 ) : ObjectAnimate<View, Boolean>(
     target, values,
-    ObjectAnimator.ofFloat(target, ViewVisibilityProperty.INSTANCE, if (values) 1f else 0f)
+    ObjectAnimator.ofFloat(target, ViewVisibilityProperty.INSTANCE, if (values) 0f else 1f, if (values) 1f else 0f)
 )
 
 /**
