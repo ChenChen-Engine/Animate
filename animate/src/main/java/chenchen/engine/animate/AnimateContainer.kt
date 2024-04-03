@@ -464,12 +464,6 @@ class AnimateContainer : ValueAnimator() {
      */
     class AnimateNode(internal val animator: ValueAnimator) {
 
-        companion object {
-            /**
-             * 无效的时长
-             */
-            const val INVALID_DURATION = Long.MIN_VALUE
-        }
 
         /**
          * 子级
@@ -801,7 +795,7 @@ class AnimateContainer : ValueAnimator() {
                 }
                 longestDuration = childNodeDuration
             } else {
-                longestDuration =  AnimatorCompat.getTotalDuration(animator)
+                longestDuration = AnimatorCompat.getTotalDuration(animator)
             }
             return longestDuration
         }
@@ -882,7 +876,7 @@ class AnimateContainer : ValueAnimator() {
             isRunning = isRunning(playTime)
             retryChangeStartState()
             retryChangeRepeat(playTime)
-            val currentPlayTime = when {
+            val calculate = when {
                 //是否已经到当前动画执行了
                 isTime(playTime) -> {
                     calculateRunningDuration(playTime)
@@ -892,14 +886,20 @@ class AnimateContainer : ValueAnimator() {
                     calculateCompensatoryDuration(playTime)
                 }
                 //未知情况
-                else -> INVALID_DURATION
+                else -> CalculateDuration.Invalid
             }
-            if (currentPlayTime != INVALID_DURATION) {
-                if (animator is AnimateContainer) {
-                    setContainerPlayTime(currentPlayTime)
-                } else {
-                    setCurrentPlayTime(currentPlayTime)
+            when (calculate) {
+                is CalculateDuration.Effective -> {
+                    if (animator is AnimateContainer) {
+                        setContainerPlayTime(calculate.duration)
+                    } else {
+                        setCurrentPlayTime(calculate.duration)
+                    }
                 }
+                is CalculateDuration.Compensatory -> {
+                    setCompensatoryPlayTime(calculate.duration)
+                }
+                else -> Unit
             }
             dispatchPlayTime(this, playTime)
             retryChangeEndState()
@@ -909,18 +909,19 @@ class AnimateContainer : ValueAnimator() {
         /**
          * 计算运行中的值
          */
-        private fun calculateRunningDuration(playTime: Long): Long {
+        private fun calculateRunningDuration(playTime: Long): CalculateDuration.Effective {
             val surplusTime = if (isReverse()) {
                 //我自己也看不懂这段怎么计算的
                 AnimatorCompat.getTotalDuration(getRootNode().animator) - playTime - frontDuration
             } else {
                 playTime - frontDuration
             }
-            return if (surplusTime - AnimatorCompat.getTotalDuration(animator) > 0) {
+            val duration = if (surplusTime - AnimatorCompat.getTotalDuration(animator) > 0) {
                 AnimatorCompat.getTotalDuration(animator)
             } else {
                 surplusTime
             }
+            return CalculateDuration.Effective(duration)
         }
 
         /**
@@ -929,24 +930,24 @@ class AnimateContainer : ValueAnimator() {
          * 301毫秒这种无需处理，因为它已经执行完整只是超过了，而299毫秒在数据层面是不完整的，会导致属性无法正确的计算
          * 所以这里做一个补偿计算，如果动画未开始则[ValueAnimator.setCurrentPlayTime]置为0，
          * 如果动画已经结束，则[ValueAnimator.setCurrentPlayTime]置为动画本身的[ValueAnimator.getDuration]
-         * @return 如果返回的是[INVALID_DURATION]则无需处理
+         * @return 如果返回的是[CalculateDuration.Invalid]则无需处理
          */
-        private fun calculateCompensatoryDuration(playTime: Long): Long {
+        private fun calculateCompensatoryDuration(playTime: Long): CalculateDuration {
             return if (isReverse()) {
                 if (playTime <= backDuration) {
-                    AnimatorCompat.getTotalDuration(animator)
+                    CalculateDuration.Compensatory.Max(AnimatorCompat.getTotalDuration(animator))
                 } else if (playTime >= backDuration + AnimatorCompat.getTotalDuration(animator)) {
-                    0L
+                    CalculateDuration.Compensatory.Min
                 } else {
-                    INVALID_DURATION
+                    CalculateDuration.Invalid
                 }
             } else {
                 if (playTime <= frontDuration) {
-                    0L
+                    CalculateDuration.Compensatory.Min
                 } else if (playTime >= frontDuration + AnimatorCompat.getTotalDuration(animator)) {
-                    AnimatorCompat.getTotalDuration(animator)
+                    CalculateDuration.Compensatory.Max(AnimatorCompat.getTotalDuration(animator))
                 } else {
-                    INVALID_DURATION
+                    CalculateDuration.Invalid
                 }
             }
         }
@@ -973,6 +974,13 @@ class AnimateContainer : ValueAnimator() {
             }
             animator.currentPlayTime = fixPlayTime
             listeners.forEach { it.onUpdate(this, animatedValue(), fixPlayTime) }
+        }
+
+        /**
+         * 设置补偿时间
+         */
+        private fun setCompensatoryPlayTime(fixPlayTime: Long) {
+            animator.currentPlayTime = fixPlayTime
         }
 
         /**
@@ -1014,7 +1022,7 @@ class AnimateContainer : ValueAnimator() {
             if (!isTime(playTime)) {
                 return
             }
-            val currentPlayTime = calculateRunningDuration(playTime)
+            val currentPlayTime = calculateRunningDuration(playTime).duration
             val repeatCount = if (currentPlayTime < AnimatorCompat.getTotalDuration(animator)) {
                 (currentPlayTime / animator.duration).toInt() + 1
             } else {
