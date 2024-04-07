@@ -78,16 +78,30 @@ class AnimateContainer : ValueAnimator() {
         if (rootNode.getParentNode() != null) {
             throw UnsupportedOperationException("child animate cannot reverse, please use root animate(子动画无法操作reverse，请使用根动画)")
         }
-        val toPlayTime = if (isStarted || isRunning) {
-            duration - currentPlayTime
-        } else {
-            //TODO 这里可能不太正确，如果从没开始过，并且直接调用reverse，0或许不太合理，有时间在看吧
-            0
-        }
+        initAnimation()
+        val toPlayTime = calculateReverseToPlayTime()
         rootNode.dispatchReverse(!rootNode.isReverse())
         //这里只能用原生的reverse逻辑，cancel再start会造成currentPlayTime异常
         super.reverse()
+        //需要等原生逻辑执行完再设置进度，才不会异常
         currentPlayTime = toPlayTime
+    }
+
+    /**
+     * 计算翻转的位置，可以让动画从当前的点开始翻转，而不是从某一端开始翻转
+     */
+    private fun calculateReverseToPlayTime(): Long {
+        //每次获取最新的时长
+        val totalDuration = AnimatorCompat.getTotalDuration(this)
+        return if (isStarted || isRunning) {
+            //已经开始或正在运行中reverse，只需要简单计算(这里先不处理运行中时长发生变化，要禁止这种行为)
+            totalDuration - minOf(currentPlayTime, totalDuration)
+        } else {
+            //不在运行中，要么结束，要么被取消。如果无论结束或被取消，playTime都会重置为0，
+            //如果结束，返回0是正常的，表示从某一端开始翻转。
+            //但取消可能是在中途被取消，如果取消要记录，而不是从某一端重新开始，则与Pause没有什么不同，所以这里不做这样的处理
+            0
+        }
     }
 
     /**
@@ -463,12 +477,15 @@ class AnimateContainer : ValueAnimator() {
      * 动画节点，组建动画关系代码注释
      */
     class AnimateNode(internal val animator: ValueAnimator) {
-
+        /**
+         * 记录当前动画时长，如果时长发生变化，最终与[longestDuration]值应当保持一致
+         */
+        private var rememberInitDuration = animator.duration
 
         /**
          * 子级
          */
-        private var childNodes = ArrayList<AnimateNode>(1)
+        private val childNodes by lazy { ArrayList<AnimateNode>(1) }
 
         /**
          * 父级
@@ -521,6 +538,11 @@ class AnimateContainer : ValueAnimator() {
         private var rememberRepeatCount = 0
 
         /**
+         * 自己的时长或子节点是否发生了变化，增、删之类
+         */
+        private var isDurationChange = true
+
+        /**
          * 动画监听
          */
         private val listeners by lazy { ArrayList<AnimateListener>(1) }
@@ -556,6 +578,7 @@ class AnimateContainer : ValueAnimator() {
          */
         internal fun removeChildNode(node: AnimateNode) {
             if (childNodes.remove(node)) {
+                markDurationChange()
                 node.getPreviousNode()?.addNextNodes(node.getNextNodes())
                 node.setParentNode(null)
                 node.setPreviousNode(null)
@@ -566,6 +589,7 @@ class AnimateContainer : ValueAnimator() {
          * 设置父级
          */
         internal fun setParentNode(node: AnimateNode?) {
+            markDurationChange()
             parentNode = node
         }
 
@@ -573,6 +597,7 @@ class AnimateContainer : ValueAnimator() {
          * 设置上一个节点
          */
         internal fun setPreviousNode(node: AnimateNode?) {
+            markDurationChange()
             previousNode = node
         }
 
@@ -580,6 +605,7 @@ class AnimateContainer : ValueAnimator() {
          * 添加下一个节点
          */
         internal fun addNextNode(node: AnimateNode) {
+            markDurationChange()
             nextNodes.add(node)
             node.setPreviousNode(this)
             node.setParentNode(this.getParentNode())
@@ -589,6 +615,7 @@ class AnimateContainer : ValueAnimator() {
          * 添加下一个节点
          */
         internal fun addNextNodes(nodes: ArrayList<AnimateNode>) {
+            markDurationChange()
             nextNodes.addAll(nodes)
             for (node in nodes) {
                 node.setPreviousNode(this)
@@ -622,6 +649,28 @@ class AnimateContainer : ValueAnimator() {
          */
         internal fun getPreviousNode(): AnimateNode? {
             return previousNode
+        }
+
+        /**
+         * 标记时长发生了变化(这里只会在子节点增删被动触发，而自己的时长发生变化要等初始化才能判断)
+         */
+        private fun markDurationChange() {
+            isDurationChange = true
+        }
+
+        /**
+         * 消费时长发了变化(可能是自己，也可能是子节点)
+         */
+        private fun consumedDurationChange() {
+            isDurationChange = false
+            rememberInitDuration = animator.duration
+        }
+
+        /**
+         * 时长是否发生变化(自己或子节点)
+         */
+        internal fun isDurationChange(): Boolean {
+            return isDurationChange && rememberInitDuration == animator.duration
         }
 
         private fun dispatchAction(beforeAction: ((AnimateNode) -> Unit)? = null, afterAction: ((AnimateNode) -> Unit)? = null) {
@@ -670,6 +719,31 @@ class AnimateContainer : ValueAnimator() {
         }
 
         /**
+         * 检查子节点是否发生了变化
+         */
+        private fun checkChildChange(): Boolean {
+            var isChange = false
+            dispatchAction(beforeAction = before@{ node ->
+                //初始化动画时，将所有需要的参数重置
+                isChange = isChange or node.isDurationChange()
+                if (isChange) {
+                    return@before
+                }
+            })
+            return isChange
+        }
+
+        /**
+         * 检查完子节点的变化
+         */
+        private fun checkedChildChange() {
+            dispatchAction(beforeAction = { node ->
+                //初始化动画时，将所有需要的参数重置
+                node.consumedDurationChange()
+            })
+        }
+
+        /**
          * 是否翻转
          */
         fun isReverse(): Boolean {
@@ -711,11 +785,15 @@ class AnimateContainer : ValueAnimator() {
          * 2.其他节点如果是[AnimateContainer]则取所有子节点的总时长
          */
         internal fun initAnimation() {
-            initState()
-            //初始化时长按顺序执行initDuration->initFrontDuration->initBackDuration
-            initDuration()
-            initFrontDuration()
-            initBackDuration()
+            assert(parentNode == null) { "只有根节点可以调用这个方法" }
+            if (checkChildChange()) {
+                initState()
+                //初始化时长按顺序执行initDuration->initFrontDuration->initBackDuration
+                initDuration()
+                initFrontDuration()
+                initBackDuration()
+                checkedChildChange()
+            }
         }
 
         /**

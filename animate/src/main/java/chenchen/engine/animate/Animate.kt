@@ -104,7 +104,7 @@ abstract class Animate(
     /**
      * 做好开始前的准备工作
      */
-    internal open fun notifyStart() {
+    internal open fun notifyReady() {
         //不支持其他模式，在开始的时候统一置为循环开始
         animator.repeatMode = ValueAnimator.RESTART
         getAnimateNode()?.addListener(animateListener)

@@ -1,7 +1,6 @@
 package chenchen.engine.animate
 
 
-
 /**
  * @author: chenchen
  * @since: 2022/4/28 22:27
@@ -43,10 +42,10 @@ open class AnimateScope(animator: AnimateContainer = AnimateContainer()) : Anima
     /**
      * 做好开始前的准备工作，作为Scope，需要通知子级
      */
-    final override fun notifyStart() {
-        super.notifyStart()
+    final override fun notifyReady() {
+        super.notifyReady()
         for (animate in link.getAnimates()) {
-            animate.notifyStart()
+            animate.notifyReady()
         }
     }
 
@@ -56,7 +55,7 @@ open class AnimateScope(animator: AnimateContainer = AnimateContainer()) : Anima
      */
     open fun start(delay: Long = 0) {
         assert(parent == null) { "Only the topmost parent can start(只有最顶层父级可以启动)" }
-        notifyStart()
+        notifyReady()
         //大部分场景都是在作用域中去构造动画的，这里面不允许单个动画单独启动，统一由顶层管理
         link.start(delay)
     }
@@ -78,6 +77,7 @@ open class AnimateScope(animator: AnimateContainer = AnimateContainer()) : Anima
      */
     open fun end() {
         assert(parent == null) { "Only the topmost parent can start(只有最顶层父级可以启动)" }
+        notifyReady()
         link.end()
     }
 
@@ -106,6 +106,7 @@ open class AnimateScope(animator: AnimateContainer = AnimateContainer()) : Anima
      */
     open fun reverse() {
         assert(parent == null) { "Only the topmost parent can start(只有最顶层父级可以启动)" }
+        notifyReady()
         link.reverse()
     }
 
