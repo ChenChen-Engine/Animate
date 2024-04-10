@@ -26,7 +26,7 @@ open class AnimateScope(animator: AnimateContainer = AnimateContainer()) : Anima
      */
     internal var link: AnimateLink = AnimateLink(animator)
 
-    final override var duration: Long = 0
+    final override var duration: Long = super.duration
         set(_) = throw throw IllegalArgumentException("unsupported set total duration, Please let the sub-animation control its own duration, 不支持设置总时长，让子动画控制自己的时长")
 
     /**

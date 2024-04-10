@@ -1,6 +1,7 @@
 package chenchen.engine.animate
 
 
+import android.animation.TimeInterpolator
 import android.animation.TypeEvaluator
 import android.animation.ValueAnimator
 import android.view.animation.Interpolator
@@ -13,7 +14,7 @@ import java.lang.Integer.max
  * @since: 2022/4/28 22:27
  */
 abstract class Animate(
-        internal var animator: ValueAnimator
+    internal var animator: ValueAnimator
 ) : Cloneable {
     private var onEnd: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
     private var onStart: ((animateNode: AnimateContainer.AnimateNode) -> Unit)? = null
@@ -32,7 +33,7 @@ abstract class Animate(
     /**
      * 设置动画的时长
      */
-    open var duration: Long = 0L
+    open var duration: Long = animator.duration
         set(value) {
             field = value
             animator.duration = value
@@ -41,7 +42,7 @@ abstract class Animate(
     /**
      * 设置动画的插值器
      */
-    var interpolator: Interpolator = LinearInterpolator()
+    var interpolator: TimeInterpolator = animator.interpolator
         set(value) {
             field = value
             animator.interpolator = value
@@ -67,6 +68,11 @@ abstract class Animate(
             field = value
             animator.repeatCount = max(value - 1, 0)
         }
+
+    init {
+        //初始化动画基本属性
+        interpolator = LinearInterpolator()
+    }
 
     /**
      * 是否运行中
