@@ -82,11 +82,10 @@ infix fun Animate.next(nextAnim: Animate): Animate {
     assert(parent is AnimateScope)
     val parentScope = parent as AnimateScope
     //因为构造动画时默认就会添加到父级中，这里需要先移除再处理next关系
-    parentScope.link.remove(nextAnim)
+    (nextAnim.parent as? AnimateScope)?.link?.remove(nextAnim)
     parentScope.link.next(this, nextAnim)
     return nextAnim
 }
-
 
 /**
  * 并行
@@ -95,7 +94,7 @@ infix fun Animate.with(withAnim: Animate): Animate {
     assert(parent is AnimateScope)
     val parentScope = parent as AnimateScope
     //因为构造动画时默认就会添加到父级中，这里需要先移除再处理with关系
-    parentScope.link.remove(withAnim)
+    (withAnim.parent as? AnimateScope)?.link?.remove(withAnim)
     parentScope.link.with(this, withAnim)
     return withAnim
 }
