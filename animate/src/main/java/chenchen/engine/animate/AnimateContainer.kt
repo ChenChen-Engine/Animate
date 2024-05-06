@@ -480,7 +480,7 @@ class AnimateContainer : ValueAnimator() {
         /**
          * 记录当前动画时长，如果时长发生变化，最终与[longestDuration]值应当保持一致
          */
-        private var rememberInitDuration = animator.duration
+        private var rememberInitDuration = AnimatorCompat.getTotalDuration(animator)
 
         /**
          * 子级
@@ -663,14 +663,14 @@ class AnimateContainer : ValueAnimator() {
          */
         private fun consumedDurationChange() {
             isDurationChange = false
-            rememberInitDuration = animator.duration
+            rememberInitDuration = AnimatorCompat.getTotalDuration(animator)
         }
 
         /**
          * 时长是否发生变化(自己或子节点)
          */
         internal fun isDurationChange(): Boolean {
-            return isDurationChange && rememberInitDuration == animator.duration
+            return isDurationChange || rememberInitDuration != AnimatorCompat.getTotalDuration(animator)
         }
 
         private fun dispatchAction(beforeAction: ((AnimateNode) -> Unit)? = null, afterAction: ((AnimateNode) -> Unit)? = null) {
@@ -1065,7 +1065,11 @@ class AnimateContainer : ValueAnimator() {
          * 给容器节点回调进度，因为容器本身没有数值，所以以百分比作为数值
          */
         private fun setContainerPlayTime(playTime: Long) {
-            listeners.forEach { it.onUpdate(this, playTime.toFloat() / AnimatorCompat.getTotalDuration(animator), playTime) }
+            listeners.forEach {
+                val duration = AnimatorCompat.getTotalDuration(animator)
+                val value = if(duration <= 0 ) 0 else playTime.toFloat() / duration
+                it.onUpdate(this, value, playTime)
+            }
         }
 
         /**
@@ -1100,13 +1104,18 @@ class AnimateContainer : ValueAnimator() {
             if (!isTime(playTime)) {
                 return
             }
+            val totalDuration = AnimatorCompat.getTotalDuration(animator)
             val currentPlayTime = calculateRunningDuration(playTime).duration
-            val repeatCount = if (currentPlayTime < AnimatorCompat.getTotalDuration(animator)) {
-                (currentPlayTime / animator.duration).toInt() + 1
+            val repeatCount = if (totalDuration <= 0) {
+                0
             } else {
-                (currentPlayTime / animator.duration).toInt()
+                if (currentPlayTime < totalDuration) {
+                    (currentPlayTime / totalDuration).toInt() + 1
+                } else {
+                    (currentPlayTime / totalDuration).toInt()
+                }
             }
-            if (repeatCount > rememberRepeatCount && currentPlayTime <= AnimatorCompat.getTotalDuration(animator)) {
+            if (repeatCount > rememberRepeatCount && currentPlayTime <= totalDuration) {
                 rememberRepeatCount = repeatCount
                 listeners.forEach { it.onRepeat(this, repeatCount, animator.repeatCount + 1) }
             }
