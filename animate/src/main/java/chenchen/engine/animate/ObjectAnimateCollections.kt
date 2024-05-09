@@ -273,10 +273,11 @@ class ViewBackgroundColorAnimate(
  * View的可见动画，这里是利用alpha和visibility实现的
  */
 class ViewVisibilityAnimate(
-    target: View, values: Boolean
+    target: View, values: Boolean, fromAlpha: Float?,
 ) : ObjectAnimate<View, Boolean>(
     target, values,
-    ObjectAnimator.ofFloat(target, ViewVisibilityProperty.INSTANCE, if (values) 0f else 1f, if (values) 1f else 0f)
+    ObjectAnimator.ofFloat(target, ViewVisibilityProperty.INSTANCE, if (values) fromAlpha
+        ?: 0f else fromAlpha ?: 1f, if (values) 1f else 0f)
 )
 
 /**

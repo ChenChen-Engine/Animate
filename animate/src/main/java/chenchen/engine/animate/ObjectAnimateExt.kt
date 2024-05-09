@@ -428,9 +428,10 @@ fun AnimateScope.animateBackground(
 fun AnimateScope.animateVisibility(
     target: View,
     visible: Boolean,
+    fromAlpha: Float? = null,
     scopeContent: ViewVisibilityAnimate.() -> Unit = {}
 ): Animate {
-    val itemScope = ViewVisibilityAnimate(target, visible)
+    val itemScope = ViewVisibilityAnimate(target, visible,fromAlpha)
     itemScope.scopeContent()
     this.attachChild(itemScope)
     return itemScope

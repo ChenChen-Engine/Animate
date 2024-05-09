@@ -1052,10 +1052,11 @@ fun View.animateBackground(
  */
 fun View.animateVisibility(
     isVisible: Boolean,
+    fromAlpha: Float? = null,
     duration: Long = 300,
     scopeContent: (Animate.() -> Unit)? = null
 ) = buildAnimate {
-    animateVisibility(this@animateVisibility, isVisible) {
+    animateVisibility(this@animateVisibility, isVisible, fromAlpha) {
         this.duration = duration
         scopeContent?.invoke(this)
     }
