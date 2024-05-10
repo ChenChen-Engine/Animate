@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.util.ArrayMap
+import android.util.Log
 import kotlin.math.max
 
 /**
@@ -1067,7 +1068,7 @@ class AnimateContainer : ValueAnimator() {
         private fun setContainerPlayTime(playTime: Long) {
             listeners.forEach {
                 val duration = AnimatorCompat.getTotalDuration(animator)
-                val value = if(duration <= 0 ) 0 else playTime.toFloat() / duration
+                val value = if (duration <= 0) 0 else playTime.toFloat() / duration
                 it.onUpdate(this, value, playTime)
             }
         }
@@ -1136,10 +1137,11 @@ class AnimateContainer : ValueAnimator() {
          */
         private val animatorUpdateListener = AnimatorUpdateListener { animation ->
             retryChangeRepeat(animation.currentPlayTime)
+            val totalDuration = AnimatorCompat.getTotalDuration(animation)
             if (animation.currentPlayTime >= AnimatorCompat.getTotalDuration(animation)) {
-                dispatchPlayTime(animation.duration)
+                dispatchPlayTime(totalDuration)
             } else {
-                dispatchPlayTime(animation.currentPlayTime % animation.duration)
+                dispatchPlayTime(animation.currentPlayTime % totalDuration)
             }
         }
 
@@ -1159,6 +1161,9 @@ class AnimateContainer : ValueAnimator() {
                     isCancel = false
                     return
                 }
+                //如果主动调用end，onUpdate收到的currentPlayTime不会变，变的是duration，
+                //整个动画是靠currentPlayTime驱动的，所以在这里补充一下，置为结束时间，但这样正常的结束就会多收到一次onUpdate，应该没关系吧
+                dispatchPlayTime(AnimatorCompat.getTotalDuration(animation))
                 listeners.forEach { it.onEnd(this@AnimateNode) }
             }
 
