@@ -6,10 +6,10 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.animation.addListener
-import chenchen.engine.animate.demo.databinding.ActivityTestBinding
+import chenchen.engine.animate.demo.databinding.ActivitySourceApiTestBinding
 
-class TestActivity : AppCompatActivity() {
-    private val binding by lazy { ActivityTestBinding.inflate(layoutInflater) }
+class SourceApiTestActivity : AppCompatActivity() {
+    private val binding by lazy { ActivitySourceApiTestBinding.inflate(layoutInflater) }
     private var scope: AnimateScope? = null
     private var container: AnimateContainer? = null
     private var animatorSet: AnimatorSet? = null

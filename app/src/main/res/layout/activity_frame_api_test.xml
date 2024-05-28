@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <View
+        android:id="@+id/target"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_gravity="center"
+        android:background="#000000" />
+
+    <Button
+        android:id="@+id/btnReverse"
+        android:layout_width="200dp"
+        android:layout_height="100dp"
+        android:layout_gravity="right"
+        android:text="reverse"
+        android:textSize="40sp" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/generateContainer"
+        android:layout_width="match_parent"
+        android:layout_height="59dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="15dp"
+        android:background="@color/black"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView
+            android:id="@+id/tvGenerate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TESTTEST"
+            android:textColor="@color/white"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/ivEmoStar"
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_marginStart="2dp"
+            android:alpha="0"
+            android:background="#034755"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tvGenerate"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+</FrameLayout>

@@ -21,6 +21,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name="chenchen.engine.animate.FrameApiTestActivity" />
+        <activity android:name="chenchen.engine.animate.SourceApiTestActivity" />
+        <activity android:name="chenchen.engine.animate.TestCaseActivity" />
     </application>
 
 </manifest>
