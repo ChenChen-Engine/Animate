@@ -547,6 +547,11 @@ class AnimateContainer : ValueAnimator() {
          */
         private val listeners by lazy { ArrayList<AnimateListener>(1) }
 
+        /*TEST CASE API START REGION*/
+        //获取当前重复次数
+        internal fun getCurrentRepeatCount() = rememberRepeatCount
+        /*TEST CASE API END REGION*/
+
         /**
          * 添加动画监听，不可重复添加同一个对象
          */
@@ -1106,14 +1111,25 @@ class AnimateContainer : ValueAnimator() {
             }
             val totalDuration = AnimatorCompat.getTotalDuration(animator)
             val currentPlayTime = calculateRunningDuration(playTime).duration
-            val repeatCount = if (currentPlayTime < totalDuration) {
+            val repeatCount = AnimatorCompat.repeatCount(animator)
+            if (totalDuration <= 0) {
+                if(rememberRepeatCount < repeatCount) {
+                    //如果时长为0，也要保证回调的次数以及记录的次数与正常时无异
+                    for (i in 0 until animator.repeatCount + 1) {
+                        rememberRepeatCount++
+                        listeners.forEach { it.onRepeat(this, rememberRepeatCount, repeatCount) }
+                    }
+                }
+                return
+            }
+            val currentRepeatCount = if (currentPlayTime < totalDuration) {
                 (currentPlayTime / animator.duration).toInt() + 1
             } else {
                 (currentPlayTime / animator.duration).toInt()
             }
-            if (repeatCount > rememberRepeatCount && currentPlayTime <= totalDuration) {
-                rememberRepeatCount = repeatCount
-                listeners.forEach { it.onRepeat(this, repeatCount, animator.repeatCount + 1) }
+            if (currentRepeatCount > rememberRepeatCount && currentPlayTime <= totalDuration) {
+                rememberRepeatCount = currentRepeatCount
+                listeners.forEach { it.onRepeat(this, currentRepeatCount, repeatCount) }
             }
         }
 
