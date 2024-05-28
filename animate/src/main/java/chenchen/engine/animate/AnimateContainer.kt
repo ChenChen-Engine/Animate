@@ -5,7 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.util.ArrayMap
-import android.util.Log
 import kotlin.math.max
 
 /**
@@ -1107,14 +1106,10 @@ class AnimateContainer : ValueAnimator() {
             }
             val totalDuration = AnimatorCompat.getTotalDuration(animator)
             val currentPlayTime = calculateRunningDuration(playTime).duration
-            val repeatCount = if (totalDuration <= 0) {
-                0
+            val repeatCount = if (currentPlayTime < totalDuration) {
+                (currentPlayTime / animator.duration).toInt() + 1
             } else {
-                if (currentPlayTime < totalDuration) {
-                    (currentPlayTime / totalDuration).toInt() + 1
-                } else {
-                    (currentPlayTime / totalDuration).toInt()
-                }
+                (currentPlayTime / animator.duration).toInt()
             }
             if (repeatCount > rememberRepeatCount && currentPlayTime <= totalDuration) {
                 rememberRepeatCount = repeatCount
@@ -1138,10 +1133,10 @@ class AnimateContainer : ValueAnimator() {
         private val animatorUpdateListener = AnimatorUpdateListener { animation ->
             retryChangeRepeat(animation.currentPlayTime)
             val totalDuration = AnimatorCompat.getTotalDuration(animation)
-            if (animation.currentPlayTime >= AnimatorCompat.getTotalDuration(animation)) {
+            if (animation.currentPlayTime >= totalDuration) {
                 dispatchPlayTime(totalDuration)
             } else {
-                dispatchPlayTime(animation.currentPlayTime % totalDuration)
+                dispatchPlayTime(animation.currentPlayTime % animation.duration)
             }
         }
 
